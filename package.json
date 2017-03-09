@@ -1,0 +1,39 @@
+{
+  "name": "json-match",
+  "version": "1.0.0",
+  "description": "Match JSON documents and extract values by describing the structure in JSON",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha --require babel-core/register --require babel-polyfill --recursive --"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/aneilbaboo/json-match.git"
+  },
+  "keywords": [
+    "json",
+    "javascript",
+    "nodejs",
+    "query",
+    "pattern",
+    "match"
+  ],
+  "author": "Aneil Mallavarapu",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/aneilbaboo/json-match/issues"
+  },
+  "homepage": "https://github.com/aneilbaboo/json-match#readme",
+  "devDependencies": {
+    "babel-cli": "6.23.0",
+    "babel-core": "6.23.1",
+    "babel-polyfill": "6.23.0",
+    "babel-preset-es2015": "6.22.0",
+    "babel-preset-stage-3": "6.22.0",
+    "chai": "3.5.0",
+    "mocha": "3.2.0"
+  },
+  "dependencies": {
+    "string-format": "0.5.0"
+  }
+}
