@@ -10,6 +10,7 @@ parserOptions:
 plugins:
   - mocha
 rules:
+  "no-console": "off"
   "strict": 0
   "no-unused-vars":
     - error
