@@ -18,78 +18,85 @@ export function evalPattern(path, pattern, data, options) {
       ops: alias(options.ops, pattern.$$alias),
       aggregators: alias(options.aggregators, pattern.$$alias)};
   }
-  // console.log('1 evalPattern path:%j pattern:%j data:%j', path, pattern, data);
+  console.log('1 evalPattern path:%j data:%j pattern:', path, data,  pattern);
 
   if (isArray(data)) {
     return evalPatternOnArray(path, pattern, data, options);
   } else {
-    var captures;
-    for (var pkey in pattern) {
-      var pval = pattern[pkey];
-      // console.log('2a evalPattern calling getTest with pkey:%s, args:%j', pkey, pval);
-      var test = getTest(options.ops, pkey, pval, options);
-      var result = null;
-      // console.log("2b *********** ACCESSING DATA: %j[%s]", data, pkey);
-      // console.log('2c getTest(pkey: %s, pval: %j)=> test:', pkey, pval, test);
+    return evalItemPattern(path, pattern, data, options);
+  }
+}
 
-      if (test) {
-        // If we are executing a test, we do not descend a level in the data
-        // E.g., Given
-        //    pattern: {b: {$isNumber: true} }
-        //    data: {b: 1}
-        // when pkey = $isNumber, data = 1
-        // console.log('3a checking key %s pattern %j against %j with op %s ',
-        //  pkey, pval, data, test);
 
-        result = test(data, path);
-        // console.log('3b result from test(%j,%j)=>', data, path, result);
-      } else {
-        // descend a level in the data
-        var dval = data[pkey];
-        path = [...path, pkey];
-        if (isObject(pval)) {
-          //
-          // Pattern match the value
-          //
-          // console.log('3a recursively testing key %s pattern %j against %j => %s',
-          //  pkey, pval, dval, result);
-          result = evalPattern(path, pval, data[pkey], options);
-          // console.log('3b result from evalPattern(%j,%j,%j)=>%j', path, pval, dval, result);
-        } else if (isFunction(pval)){
-          //
-          // Execute a predicate on the value
-          //
-          result = pval(dval);
-          // console.log('3b function testing key %s pattern %j against %j => %s',
-          // pkey, pval, dval, result);
-        } else {
-          //
-          // Otherwise, just test for equality
-          //
-          result = (pval==data[pkey]);
-          // console.log('3b equality testing key %s pattern %j against %j => %s',
-          //  pkey, pval, dval, result);
-        }
+function evalItemPattern(path, pattern, data, options) {
+  console.log(">>>>>>>> evalItemPattern %j pattern:", path, pattern);
+  var captures;
+  for (var pkey in pattern) {
+    var pval = pattern[pkey];
+    console.log('2a evalItemPattern calling getTest with pkey:%s, args:', pkey, pval);
+    var test = getTest(options.ops, pkey, pval, options);
+    var result = null;
+    console.log("2b *********** ACCESSING DATA: %j[%s]", data, pkey);
+    console.log('2c in pattern', pattern, 'getTest(pkey:', pkey,'pval:',pval,'=> test:', test);
 
-      }
+    if (test) {
+      // If we are executing a test, we do not descend a level in the data
+      // E.g., Given
+      //    pattern: {b: {$isNumber: true} }
+      //    data: {b: 1}
+      // when pkey = $isNumber, data = 1
+      console.log('3a checking key %s pattern %j against data:%j ', pkey, pval, data, test);
 
-      if (result==undefined || result==false) {
-        // console.log('failed -- returning undefined result');
-        return undefined;
-      }
-
-      if (isCapture(result)) {
-        captures = captures || {};
-        Object.assign(captures, result.bindings);
-      }
-    }
-    if (captures) {
-      // console.log('returning Capture(true, %j)', captures);
-      return new Capture(true, captures);
+      result = test(data, path);
+      console.log('3b result from test(%j,%j)=>', data, path, result);
     } else {
-      // console.log('returning true');
-      return true;
+      // descend a level in the data
+      var dval = data[pkey];
+      path = [...path, pkey];
+      if (isObject(pval)) {
+        //
+        // Pattern match the value
+        //
+        console.log('3a recursively testing key %s pattern %j against %j => %s', pkey, pval, dval, result);
+        result = evalPattern(path, pval, data[pkey], options);
+        console.log('3b result from evalPattern(%j,%j,%j)=>%j', path, pval, dval, result);
+      } else if (isFunction(pval)){
+        //
+        // Execute a predicate on the value
+        //
+        result = pval(dval);
+        console.log('3b evaluating function %s(%j)=>%j / function=', pval.name, dval, result, pval);
+      } else {
+        //
+        // Otherwise, just test for equality
+        //
+        result = (pval==data[pkey]);
+        console.log('3b equality testing key %s pattern %j against %j => %s', pkey, pval, dval, result);
+      }
+
     }
+
+    // terminate pattern matching if the result is falsey, but not 0
+    if (!isSuccess(result)) {
+      console.log('4a failed -- returning undefined result');
+      return result;
+    } else {
+      console.log('4b result is ok:', result);
+    }
+
+    if (isCapture(result)) {
+      captures = captures || {};
+      result = result.value;
+      Object.assign(captures, result.bindings);
+    }
+  }
+
+  if (captures) {
+    console.log('returning Capture(true, %j)', captures);
+    return new Capture(result, captures);
+  } else {
+    console.log('returning result', result);
+    return result;
   }
 }
 
@@ -172,7 +179,7 @@ function combineResults(value, results) {
 }
 
 function normalizeArgs(ops, args) {
-  // console.log('normalizing args: %j', args);
+  console.log('normalizing args: %j', args);
   if (isArray(args)) {
     return args;
   } else if (args!=undefined) {
@@ -217,19 +224,23 @@ function makeSecondOrderTest(op, pattern, options) {
  * @return {type}         description
  */
 function getTest(ops, opName, args, options) {
-  // console.log("1 getTest opName:%s args:%s", opName, args);
+  console.log("1 getTest opName:%s args:%s", opName, args);
   var op = ops[opName];
   if (op) {
-    if (isObject(args)) { // we need to perform a test on the results of the test
-      var resultSOT= makeSecondOrderTest(op, args, options);
-      // console.log("2 getTest isObject(args)... makesecondOrderTest =>", resultSOT);
-      return resultSOT;
+    if (isObject(args)) {
+      // a test which tests the pattern result
+      // used in a case like this:
+      // match({ myarray: { _$count: { $lte: 5} }}, {myarray: [1,2,3]}); // => {} success
+      // match({ myarray: { _$count: { $gte: 5} }}, {myarray: [1,2,3]}); // => null fail
+      return makeSecondOrderTest(op, args, options);
+    } else if (args==false) {
+      // syntactic sugar for inverting the value of a predicate:
+      // e.g., match({ val: { $isNumber: false}}, { val:"not a num!" }); // => {} success
+      return function (data, path) { return !op(...normArgs)(data, path); };
     } else {
-      // console.log("1.5 getTest args:%j", args);
+      console.log("1.5 getTest args:%j", args);
       var normArgs = normalizeArgs(ops, args);
-      var result = op(...normArgs);
-      // console.log("2 getTest normalizedArgs:",normArgs," =>", result);
-      return result;
+      return op(...normArgs);
     }
   }
 }

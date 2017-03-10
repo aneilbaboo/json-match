@@ -12,11 +12,13 @@ describe('match', function (){
   });
 
   it('should succeed if the pattern value is a function which will return truthy', function () {
-    expect(match({a:isNumber, b:2}, {b:2, a:1})).to.be.ok;
+    expect(match({a:isNumber, b:"hi"}, {b:"hi", a:1})).to.be.ok;
   });
 
   it('should fail if the pattern value is a function which will return falsey', function () {
+    console.log("********* START");
     expect(match({a:isNumber, b:2}, {b:2, a:"not a number"})).to.not.be.ok;
+    console.log("********* END");
   });
 
   it('should succeed a deep structure', function () {

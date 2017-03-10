@@ -3,21 +3,76 @@ import {isString, isArray, isNumber, isFunction} from 'util';
 import format from 'string-format';
 
 import {evalPattern} from './evaluator';
-import {Capture, pathToString, pathIndex, pathParent} from './utils';
+import {Capture, pathToString, pathIndex, pathParent, check} from './utils';
 
-// export const DEFAULT_MACROS = {
-//   $and(...patterns) {
-//     return makeAndTest(patterns);
-//   },
-//   $or(...patterns) {
-//     return;
-//   },
-//   $if(condition, thenPattern, elsePattern) {
-//     return function (data, path) {
-//
-//     }
-//   }
-// };
+
+export const SPECIAL_OPERATORS = {
+  $if(testPattern, thenPattern, elsePattern) {
+    return function (data, path, options) {
+      var conditionResult = evalPattern(path, testPattern, data, options);
+      if (conditionResult) {
+        return addResult(
+                conditionResult,
+                evalPattern(path, thenPattern, data, options));
+      } else if (elsePattern) {
+        return addResult(
+                conditionResult,
+                evalPattern(path, elsePattern, data, options));
+      }
+    };
+  },
+  $let(bindings, pattern) {
+    return function (data, path, options) {
+      check(isObject(bindings),
+        "In $let, bindings must be an Object, but %j provided", bindings);
+      bindings = isObject(data) ? {...data, ...bindings} : bindings;
+      return evalPattern(path, pattern, bindings, options);
+    };
+  }
+};
+
+export const DEFAULT_MACROS = {
+  $and(...args) {
+    // Like Lisp's AND macro
+    var len = args.length;
+    if (len>=2) {
+      return {$let: [
+        {result: args[0]},
+        {$if: [{$:'result'},
+          {$and: args.slice(1)}]}
+      ]};
+    } else {
+      return args[0]; // evaluate the last pattern and return that value
+    }
+  },
+  $or(...args) {
+    // like Lisp's OR macro
+    var len = args.length;
+    if (len>1) {
+      return {
+        $let: [
+          {result: args[0]}, // evaluate the first arg
+          {$if: [{$:'result'}, // if it is truthy
+            {$:'result'}, // return it
+            {$or:args.slice(1)}]
+          } // otherwise, try remaining args
+        ]
+      };
+    } else {
+      return args[0];
+    }
+  },
+  $nor(...args) {
+    return {$not: {$or: args}};
+  },
+  $nand(...args) {
+    return {$not: {$and: args}};
+  },
+  $xor(arg1, arg2) {
+    return {$or: [{$and: [arg1, {$not: arg2}]},
+                  {$and: [arg2, {$not: arg1}]}]};
+  }
+};
 
 function makeCaptureTest(outputKey) {
   return function (data, path) {
